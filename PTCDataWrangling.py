@@ -1,7 +1,6 @@
 # Data Prep for Personality Text Classifier
 
 #import libraries
-import re
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
