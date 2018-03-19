@@ -6,3 +6,5 @@ re
 os
 warnings
 missingno
+pylab
+scipy.stats
