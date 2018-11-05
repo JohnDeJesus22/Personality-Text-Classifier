@@ -12,6 +12,7 @@ from sklearn.metrics import roc_auc_score
 from tensorflow.keras import layers, Model
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.models import save_model
 
 # predefining parameters
 MAX_SEQUENCE_LENGTH = 100
@@ -46,9 +47,9 @@ tweets = data['individualPosts'].values
 personality_type = data['IntroExtro'].values
 labelencoder = LabelEncoder()
 personality_type = labelencoder.fit_transform(personality_type)
-onehotencoder=OneHotEncoder(categorical_features=[1])
-personality_type=onehotencoder.fit_transform([personality_type]).toarray()
-personality_type = personality_type.reshape(395472,-1)
+#onehotencoder=OneHotEncoder(categorical_features=[1])
+#personality_type=onehotencoder.fit_transform([personality_type]).toarray()
+#personality_type = personality_type.reshape(395472,-1)
 
 # tokenize and convert tweets to integers
 tokenizer = Tokenizer(num_words = MAX_VOCAB_SIZE)
@@ -106,3 +107,37 @@ classifier = model.fit(padded_seq, personality_type,
                        batch_size = BATCH_SIZE,epochs = EPOCHS,
                        validation_split = VALIDATION_SPLIT)
 print('Training Completed')
+
+# save the model
+os.chdir('D:\\PacktTensorflowCourseMaterials\\PersonalityCNN')
+
+save_model(model=model,filepath = './personality-model-1',overwrite = True,
+                 include_optimizer = True)
+
+# plot loss and validation loss
+plt.plot(classifier.history['loss'],label='training loss')
+plt.plot(classifier.history['val_loss'],label = 'validation_loss')
+plt.legend()
+plt.show()
+# validation loss increased. Probably due to the imbalance in the classes
+
+# plot accuracy and validation accuracy
+plt.plot(classifier.history['acc'], label = 'training accuracy')
+plt.plot(classifier.history['val_acc'], label = 'validation accuracy')
+plt.legend()
+plt.show()
+# val acc dipped at 8th epoch but then stabilized afterward
+
+# evaluate with roc_auc_score
+p = model.predict(padded_seq)
+aucs = []
+for j in range(6):
+    auc = roc_auc_score(personality_type[:,j], p[:,j])
+    aucs.append(auc)
+print(np.mean(aucs))
+
+# test tweet
+new_tweet = 'hi there everyone! can not wait to hangout with you all'
+new_tweet = tokenizer.texts_to_sequences(new_tweet)
+new_tweet = pad_sequences(new_tweet, maxlen= MAX_SEQUENCE_LENGTH)
+labelencoder.inverse_transform(model.predict(new_tweet))
