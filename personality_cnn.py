@@ -7,8 +7,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import missingno as msno
 import tensorflow as tf
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder, LabelBinarizer
-from sklearn.metrics import roc_auc_score
+from sklearn.preprocessing import LabelEncoder
+from sklearn.utils import class_weight
+from sklearn.metrics import roc_auc_score, confusion_matrix
 from tensorflow.keras import layers, Model
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
@@ -102,10 +103,17 @@ output = layers.Dense(1,activation = 'sigmoid')(x)
 model = Model(inputs,output)
 model.compile(loss = 'binary_crossentropy',optimizer = 'rmsprop',metrics=['accuracy'])
 
+# adjust weights due to imbalance class representation. Adjusted afterward
+class_weights = class_weight.compute_class_weight('balanced', 
+                                                  np.unique(personality_type),
+                                                  personality_type)
+
+# traing the model
 print('Training Model')
 classifier = model.fit(padded_seq, personality_type,
                        batch_size = BATCH_SIZE,epochs = EPOCHS,
-                       validation_split = VALIDATION_SPLIT)
+                       validation_split = VALIDATION_SPLIT,
+                       class_weight = [70,0.652142])
 print('Training Completed')
 
 # save the model
@@ -126,18 +134,18 @@ plt.plot(classifier.history['acc'], label = 'training accuracy')
 plt.plot(classifier.history['val_acc'], label = 'validation accuracy')
 plt.legend()
 plt.show()
-# val acc dipped at 8th epoch but then stabilized afterward
+# val acc dipped at 8th epoch but then stabilized afterward after first run
 
-# evaluate with roc_auc_score
+# evaluate with confusion matrix
 p = model.predict(padded_seq)
-aucs = []
-for j in range(6):
-    auc = roc_auc_score(personality_type[:,j], p[:,j])
-    aucs.append(auc)
-print(np.mean(aucs))
+real_p = (p>.8)
+p = labelencoder.inverse_transform(p)
+
+tn, fp, fn, tp = confusion_matrix(personality_type,real_p).ravel()
+
 
 # test tweet
 new_tweet = 'hi there everyone! can not wait to hangout with you all'
 new_tweet = tokenizer.texts_to_sequences(new_tweet)
-new_tweet = pad_sequences(new_tweet, maxlen= MAX_SEQUENCE_LENGTH)
+new_tweet = pad_sequences(new_tweet, maxlen = MAX_SEQUENCE_LENGTH)
 labelencoder.inverse_transform(model.predict(new_tweet))
