@@ -10,6 +10,8 @@ import tensorflow as tf
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import class_weight
 from sklearn.metrics import roc_auc_score, confusion_matrix
+from imblearn.keras import BalancedBatchGenerator
+from imblearn.under_sampling import NearMiss
 from tensorflow.keras import layers, Model
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
@@ -107,8 +109,16 @@ model.compile(loss = 'binary_crossentropy',optimizer = 'rmsprop',metrics=['accur
 class_weights = class_weight.compute_class_weight('balanced', 
                                                   np.unique(personality_type),
                                                   personality_type)
+# create batch generator with imblearn.keras
+training_generator = BalancedBatchGenerator(padded_seq, personality_type,
+                                            sampler = NearMiss(),batch_size = BATCH_SIZE,
+                                            random_state = 1)
 
-# traing the model
+# training model with fit_generator
+classifier2 = model.fit_generator(generator = training_generator,epochs = EPOCHS,
+                                  verbose = 2)
+
+# training the model with keras fit
 print('Training Model')
 classifier = model.fit(padded_seq, personality_type,
                        batch_size = BATCH_SIZE,epochs = EPOCHS,
