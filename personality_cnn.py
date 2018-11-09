@@ -7,11 +7,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import missingno as msno
 import tensorflow as tf
+import time
+from collections import Counter
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import class_weight
 from sklearn.metrics import roc_auc_score, confusion_matrix
-from imblearn.keras import BalancedBatchGenerator
-from imblearn.under_sampling import NearMiss
+from imblearn.keras import balanced_batch_generator
+from imblearn.over_sampling import SMOTE
 from tensorflow.keras import layers, Model
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
@@ -106,23 +108,32 @@ model = Model(inputs,output)
 model.compile(loss = 'binary_crossentropy',optimizer = 'rmsprop',metrics=['accuracy'])
 
 # adjust weights due to imbalance class representation. Adjusted afterward
-class_weights = class_weight.compute_class_weight('balanced', 
-                                                  np.unique(personality_type),
-                                                  personality_type)
-# create batch generator with imblearn.keras
-training_generator = BalancedBatchGenerator(padded_seq, personality_type,
-                                            sampler = NearMiss(),batch_size = BATCH_SIZE,
+#class_weights = class_weight.compute_class_weight('balanced', 
+                                                 # np.unique(personality_type),
+                                                 # personality_type)
+                                                 
+# oversampling with smote(testing after bbg and fit_generator)
+
+class_totals = Counter(personality_type)
+sm = SMOTE(random_state = 1)                                                 
+padded_seq_res, personality_type_res = sm.fit_sample(padded_seq, personality_type)
+res_class_totals = Counter(personality_type_res)
+'''
+# create batch generator with imblearn.keras (worked but accuracy dropped signficiantly)
+training_generator, steps_per_epoch = balanced_batch_generator(padded_seq, personality_type,
+                                            batch_size = BATCH_SIZE,
                                             random_state = 1)
 
 # training model with fit_generator
-classifier2 = model.fit_generator(generator = training_generator,epochs = EPOCHS,
-                                  verbose = 2)
-
-# training the model with keras fit
 print('Training Model')
-classifier = model.fit(padded_seq, personality_type,
+classifier=model.fit_generator(generator = training_generator,epochs = EPOCHS,
+                                  steps_per_epoch = steps_per_epoch,verbose = 2 )
+'''
+# training the model with keras fit
+#print('Training Model')
+classifier = model.fit(padded_seq_res, personality_type_res,
                        batch_size = BATCH_SIZE,epochs = EPOCHS,
-                       validation_split = VALIDATION_SPLIT,
+                       validation_split = VALIDATION_SPLIT),
                        class_weight = [70,0.652142])
 print('Training Completed')
 
