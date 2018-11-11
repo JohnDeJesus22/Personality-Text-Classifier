@@ -5,9 +5,7 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import missingno as msno
 import tensorflow as tf
-import time
 from collections import Counter
 from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import class_weight
@@ -113,34 +111,26 @@ model.compile(loss = 'binary_crossentropy',optimizer = 'rmsprop',metrics=['accur
                                                  # personality_type)
                                                  
 # oversampling with smote(testing after bbg and fit_generator)
-
+print('Beginning SMOTE oversampling')
 class_totals = Counter(personality_type)
 sm = SMOTE(random_state = 1)                                                 
 padded_seq_res, personality_type_res = sm.fit_sample(padded_seq, personality_type)
 res_class_totals = Counter(personality_type_res)
-'''
-# create batch generator with imblearn.keras (worked but accuracy dropped signficiantly)
-training_generator, steps_per_epoch = balanced_batch_generator(padded_seq, personality_type,
-                                            batch_size = BATCH_SIZE,
-                                            random_state = 1)
+print('Sampling complete:', res_class_totals)
 
-# training model with fit_generator
-print('Training Model')
-classifier=model.fit_generator(generator = training_generator,epochs = EPOCHS,
-                                  steps_per_epoch = steps_per_epoch,verbose = 2 )
-'''
+
 # training the model with keras fit
 #print('Training Model')
 classifier = model.fit(padded_seq_res, personality_type_res,
                        batch_size = BATCH_SIZE,epochs = EPOCHS,
-                       validation_split = VALIDATION_SPLIT),
-                       class_weight = [70,0.652142])
+                       validation_split = VALIDATION_SPLIT)
+                       
 print('Training Completed')
 
 # save the model
 os.chdir('D:\\PacktTensorflowCourseMaterials\\PersonalityCNN')
 
-save_model(model=model,filepath = './personality-model-1',overwrite = True,
+save_model(model=model,filepath = './smote-model-1',overwrite = True,
                  include_optimizer = True)
 
 # plot loss and validation loss
@@ -148,25 +138,24 @@ plt.plot(classifier.history['loss'],label='training loss')
 plt.plot(classifier.history['val_loss'],label = 'validation_loss')
 plt.legend()
 plt.show()
-# validation loss increased. Probably due to the imbalance in the classes
+
 
 # plot accuracy and validation accuracy
 plt.plot(classifier.history['acc'], label = 'training accuracy')
 plt.plot(classifier.history['val_acc'], label = 'validation accuracy')
 plt.legend()
 plt.show()
-# val acc dipped at 8th epoch but then stabilized afterward after first run
+
 
 # evaluate with confusion matrix
 p = model.predict(padded_seq)
-real_p = (p>.8)
-p = labelencoder.inverse_transform(p)
+real_p = (p>.5)
 
-tn, fp, fn, tp = confusion_matrix(personality_type,real_p).ravel()
+cm = confusion_matrix(personality_type,real_p)
 
 
 # test tweet
-new_tweet = 'hi there everyone! can not wait to hangout with you all'
+new_tweet = np.array(["I prefer to be alone."])
 new_tweet = tokenizer.texts_to_sequences(new_tweet)
 new_tweet = pad_sequences(new_tweet, maxlen = MAX_SEQUENCE_LENGTH)
 labelencoder.inverse_transform(model.predict(new_tweet))
