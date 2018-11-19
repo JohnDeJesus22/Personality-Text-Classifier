@@ -8,10 +8,8 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 from collections import Counter
 from sklearn.preprocessing import LabelEncoder
-from sklearn.utils import class_weight
 from sklearn.metrics import roc_auc_score, confusion_matrix
-from imblearn.keras import balanced_batch_generator
-from imblearn.over_sampling import SMOTE
+from imblearn.under_sampling import NearMiss
 from tensorflow.keras import layers, Model
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
@@ -27,8 +25,8 @@ EPOCHS = 10
 
 
 # change directory
-os.chdir('D:\\glovePretrainedFlies\\glove.twitter.27B')
-glove_file = 'glove.twitter.27B.50d.txt'
+os.chdir('D:\\glovePretrainedFlies\\glove.6B')
+glove_file = 'glove.6B.50d.txt'
 
 # load pretrained twitter glove vectors into dictionary
 print('Loading pretrained glove file')
@@ -45,14 +43,13 @@ print(f'Found {len(word2vec)} word vectors')
 # load dataset and split into tweets and target types
 print('Loading tweet data')
 os.chdir('D:\\')
-data = pd.read_csv('mbt1_modified.csv',encoding = 'latin1')
+data = pd.read_csv('mbt1_modified.csv',encoding = 'latin1',usecols=['individualPosts',
+                                                                     'ThinkFeel'])
 tweets = data['individualPosts'].values
-personality_type = data['IntroExtro'].values
+personality_type = data['ThinkFeel'].values
 labelencoder = LabelEncoder()
 personality_type = labelencoder.fit_transform(personality_type)
-#onehotencoder=OneHotEncoder(categorical_features=[1])
-#personality_type=onehotencoder.fit_transform([personality_type]).toarray()
-#personality_type = personality_type.reshape(395472,-1)
+
 
 # tokenize and convert tweets to integers
 tokenizer = Tokenizer(num_words = MAX_VOCAB_SIZE)
@@ -103,25 +100,21 @@ x = layers.Dense(128,activation = 'relu')(x)
 output = layers.Dense(1,activation = 'sigmoid')(x)
 
 model = Model(inputs,output)
-model.compile(loss = 'binary_crossentropy',optimizer = 'rmsprop',metrics=['accuracy'])
+model.compile(loss = 'binary_crossentropy',optimizer = 'rmsprop',
+              metrics=['accuracy'])
 
-# adjust weights due to imbalance class representation. Adjusted afterward
-#class_weights = class_weight.compute_class_weight('balanced', 
-                                                 # np.unique(personality_type),
-                                                 # personality_type)
-                                                 
 # oversampling with smote(testing after bbg and fit_generator)
-print('Beginning SMOTE oversampling')
+print('Beginning nearmiss sampling')
 class_totals = Counter(personality_type)
-sm = SMOTE(random_state = 1)                                                 
-padded_seq_res, personality_type_res = sm.fit_sample(padded_seq, personality_type)
+nm = NearMiss(random_state = 1,sampling_strategy = 'majority')                                                 
+padded_seq_res, personality_type_res = nm.fit_resample(padded_seq, personality_type)
 res_class_totals = Counter(personality_type_res)
 print('Sampling complete:', res_class_totals)
 
 
 # training the model with keras fit
 #print('Training Model')
-classifier = model.fit(padded_seq_res, personality_type_res,
+classifier = model.fit(padded_seq, personality_type,
                        batch_size = BATCH_SIZE,epochs = EPOCHS,
                        validation_split = VALIDATION_SPLIT)
                        
@@ -130,7 +123,7 @@ print('Training Completed')
 # save the model
 os.chdir('D:\\PacktTensorflowCourseMaterials\\PersonalityCNN')
 
-save_model(model=model,filepath = './smote-model-1',overwrite = True,
+save_model(model=model,filepath = './cnn-model-2-240',overwrite = True,
                  include_optimizer = True)
 
 # plot loss and validation loss
@@ -148,7 +141,7 @@ plt.show()
 
 
 # evaluate with confusion matrix
-p = model.predict(padded_seq)
+p = model.predict_classes(padded_seq)
 real_p = (p>.5)
 
 cm = confusion_matrix(personality_type,real_p)
@@ -158,4 +151,5 @@ cm = confusion_matrix(personality_type,real_p)
 new_tweet = np.array(["I prefer to be alone."])
 new_tweet = tokenizer.texts_to_sequences(new_tweet)
 new_tweet = pad_sequences(new_tweet, maxlen = MAX_SEQUENCE_LENGTH)
-labelencoder.inverse_transform(model.predict(new_tweet))
+result = labelencoder.inverse_transform(model.predict(new_tweet))
+print(result[0])
