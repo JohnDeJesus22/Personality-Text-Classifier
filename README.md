@@ -17,5 +17,5 @@ Data was sigificantly imbalanced with the introverts. I was aware of this intial
 ### Attempt Two:
 Applied SMOTE oversampling from imblearn api before training the model. Improved accuracy on both the the training (about 79%) and the validation sets (about 91%).
 
-11/10/18: will attempt SMOTE with ENN and then will apply bayesian optimization to improve the overall model.
-
+### Bayesian Optimization
+11/20/18: Setting up Bayesian Optimization based on an [online tutorial](https://github.com/Hvass-Labs/TensorFlow-Tutorials/blob/master/19_Hyper-Parameters.ipynb) using [Scikit-Optimize](https://scikit-optimize.github.io/). Setup was successful.
